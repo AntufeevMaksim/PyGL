@@ -1,8 +1,10 @@
 
+from geometry import Vec3
+
 class ObjParser:
 
-  vertexes = list(list())
-  faces = list(list())
+  vertexes = list()
+  faces = list()
 
 
   def __init__(self, file_path) -> None:
@@ -16,7 +18,8 @@ class ObjParser:
   def _parse_vertexes(self, file):
     while((line := file.readline())[0] == "v"):
       line = line[1:]
-      self.vertexes.append(list(map(float, line.split())))
+      vertex = list(map(float, line.split()))
+      self.vertexes.append(Vec3(vertex[0], vertex[1], vertex[2]))
 
   def _parse_faces(self, file):
     while ((line := file.readline()) != ""):
