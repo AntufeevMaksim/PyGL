@@ -18,7 +18,10 @@ class ObjParser:
   def _parse_vertexes(self, file):
     while((line := file.readline())[0] == "v"):
       line = line[1:]
-      vertex = list(map(float, line.split()))
+#      vertex = list(map(float, line.split()))
+      vertex = list()
+      for str_coord in line.split():
+        vertex.append(float(str_coord))
       self.vertexes.append(Vec3(vertex[0], vertex[1], vertex[2]))
 
   def _parse_faces(self, file):

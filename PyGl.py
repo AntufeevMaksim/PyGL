@@ -1,10 +1,16 @@
 
 from PIL import Image
-from PIL import ImageOps
+from PIL import ImageOps, ImageDraw
 from obj_parser import ObjParser
 import random
 import math
 from geometry import Vec3
+
+def v_in_range(list_v, range_x, range_y):
+  for v in list_v:
+    if ((v.x in range_x) and (v.y in range_y)):
+      return True
+
 
 def line(x0, y0, x1, y1, im, color):
 
@@ -45,56 +51,77 @@ def line(x0, y0, x1, y1, im, color):
 def vec_product(vec1, vec2):
   a = Vec3(vec1[0], vec1[1], vec1[2])
   b = Vec3(vec2[0], vec2[1], vec2[2])
-  return [a.y * b.z - a.z * b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x]
+  return Vec3(a.y * b.z - a.z * b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x)
 
-def cos_2vec(vec1, vec2):
-  return (vec1[0]*vec2[0] + vec1[1]*vec2[1] + vec1[2]*vec2[2])/(math.sqrt(vec1[0]**2 + vec1[1]**2 + vec1[2]**2) * math.sqrt(vec2[0]**2 + vec2[1]**2 + vec2[2]**2))
+def cos_2vec(a, b):
+  return (a.x*b.x + a.y*b.y + a.z*b.z)/(math.sqrt((a.x)**2 + (a.y)**2 + (a.z)**2) * math.sqrt((b.x)**2 + (b.y)**2 + (b.z)**2))
 
 def draw_obj(obj, image):
+  count = 0
+  draw = ImageDraw.Draw(image)
   for face in obj.faces:
     v1 = obj.vertexes[face[0]-1]
     v2 = obj.vertexes[face[1]-1]
     v3 = obj.vertexes[face[2]-1]
 
-    copy_v1 =[0,0]
-    copy_v2 =[0,0]
-    copy_v3 =[0,0]
+    screen_v1 = Vec3()
+    screen_v2 = Vec3()
+    screen_v3 = Vec3()
 
-    copy_v1[0] = int((v1[0]+1) * IMAGE_WIDTH/2)-1
-    copy_v1[1] = int((v1[1]+1) * IMAGE_HEIGHT/2)-1
+    width = IMAGE_WIDTH/2
+    height = IMAGE_HEIGHT/2
+    screen_v1.x = int((v1.x+1) * width)-1
+    screen_v1.y = int((v1.y+1) * height)-1
 
-    copy_v2[0] = int((v2[0]+1) * IMAGE_WIDTH/2)-1
-    copy_v2[1] = int((v2[1]+1) * IMAGE_HEIGHT/2)-1
+    screen_v2.x = int((v2.x+1) * width)-1
+    screen_v2.y = int((v2.y+1) * height)-1
 
-    copy_v3[0] = int((v3[0]+1) * IMAGE_WIDTH/2)-1
-    copy_v3[1] = int((v3[1]+1) * IMAGE_HEIGHT/2)-1
+    screen_v3.x = int((v3.x+1) * width)-1
+    screen_v3.y = int((v3.y+1) * height)-1
 
-    vec1 = [v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]]
-    vec2 = [v1[0] - v3[0], v1[1] - v3[1], v1[2] - v3[2]]
+    # if v_in_range((screen_v1, screen_v2, screen_v3), list(range(480, 500)), list(range(850, 880))):
+    #   print(1)
 
-    # if ((vec2[0] - vec1[0]) * (vec2[1] + vec1[1])):
-    #   normal = vec_product(vec1, vec2)
-    # else:
-    #   normal = vec_product(vec2, vec1)
+    vec1 = [v1.x - v2.x, v1.y - v2.y, v1.z - v2.z]
+    vec2 = [v1.x - v3.x, v1.y - v3.y, v1.z - v3.z]
+
+    image.putpixel((488, 863), (255, 0, 0))
 
     normal = vec_product(vec2, vec1)
 
-    light_dir = [0,0,10]
+    light_dir = Vec3(0, 0, -1)
     intensity = cos_2vec(normal, light_dir)
 
-    if (intensity > 0):
-      triangle(copy_v1, copy_v2, copy_v3, image, (int(255*intensity), int(255*intensity), int(255*intensity)))
-    
+    if v_in_range((screen_v1, screen_v2, screen_v3), list(range(498, 501)), list(range(110, 171))):
+      triangle(screen_v1, screen_v2, screen_v3, image, (int(255), int(0), int(0)))
+      ImageOps.flip(image).save("output.tga")
 
+# #    if (v1.z < 0 or v2.z < 0 or v3.z > 0):
+    triangle(screen_v1, screen_v2, screen_v3, image, (int(random.randrange(0, 256)), int(random.randrange(0, 256)), int(random.randrange(0, 256))))
+#    ImageOps.flip(image).save("output.tga")
+#    draw.polygon([(screen_v1.x, screen_v1.y), (screen_v2.x, screen_v2.y), (screen_v3.x, screen_v3.y)], (int(random.randrange(0, 256)), int(random.randrange(0, 256)), int(random.randrange(0, 256))))
+    count += 1
+
+
+  count += 0
 #    line(copy_v1[0], copy_v1[1], copy_v2[0], copy_v2[1], image, (255, 255, 255))
 #    line(copy_v1[0], copy_v1[1], copy_v3[0], copy_v3[1], image, (255, 255, 255))
 #    line(copy_v2[0], copy_v2[1], copy_v3[0], copy_v3[1], image, (255, 255, 255))  
 
+def change_x(x, y, err, dy, dir, color):
+  while 2*err > dy:
+    x += dir
+    err -= dy
+    image.putpixel((x, y), color)
+
+  return x, err
+
+
 
 def triangle(v1, v2, v3, image, color):
-  x1, y1 = v1[0], v1[1]
-  x2, y2 = v2[0], v2[1]
-  x3, y3 = v3[0], v3[1]
+  x1, y1 = v1.x, v1.y
+  x2, y2 = v2.x, v2.y
+  x3, y3 = v3.x, v3.y
 
   if (y3 < y1):
     y1, y3 = y3, y1
@@ -135,19 +162,23 @@ def triangle(v1, v2, v3, image, color):
   err_alpha = 0
   err_beta = 0
 
+
   line(x_alpha, y1, x_beta, y1, image, color)
   for y in range(y1+1, y2+1):
     err_alpha += d_err_alpha
-    while 2*err_alpha > dy1_3:
-      x_alpha += dir_alpha
-      err_alpha -= dy1_3
-    image.putpixel((x_alpha, y), color)
+
+    x_alpha, err_alpha = change_x(x_alpha, y, err_alpha, dy1_3, dir_alpha, color)
+    # while 2*err_alpha > dy1_3:
+    #   x_alpha += dir_alpha
+    #   err_alpha -= dy1_3
+    #   image.putpixel((x_alpha, y), color)
 
     err_beta += d_err_beta
-    while 2*err_beta >= dy1_2:
-      x_beta += dir_beta
-      err_beta -= dy1_2
-    image.putpixel((x_beta, y), color)
+    x_beta, err_beta = change_x(x_beta, y, err_beta, dy1_2, dir_beta, color)
+    # while 2*err_beta >= dy1_2:
+    #   x_beta += dir_beta
+    #   err_beta -= dy1_2
+    #   image.putpixel((x_beta, y), color)
 
     line(x_alpha, y, x_beta, y, image, color)
 
@@ -160,16 +191,18 @@ def triangle(v1, v2, v3, image, color):
   for y in range(y2+2, y3+1):
 
     err_alpha += d_err_alpha
-    while 2*err_alpha > dy1_3:
-      x_alpha += dir_alpha
-      err_alpha -= dy1_3
-    image.putpixel((x_alpha, y), color)
+    x_alpha, err_alpha = change_x(x_alpha, y, err_alpha, dy1_3, dir_alpha, color)
+    # while 2*err_alpha > dy1_3:
+    #   x_alpha += dir_alpha
+    #   err_alpha -= dy1_3
+    #   image.putpixel((x_alpha, y), color)
 
     err_beta += d_err_beta
-    while 2*err_beta > dy2_3:
-      x_beta += dir_beta
-      err_beta -= dy2_3
-    image.putpixel((x_beta, y), color)
+    x_beta, err_beta = change_x(x_beta, y, err_beta, dy2_3, dir_beta, color)
+    # while 2*err_beta > dy2_3:
+    #   x_beta += dir_beta
+    #   err_beta -= dy2_3
+    #   image.putpixel((x_beta, y), color)
 
     line(x_alpha, y, x_beta, y, image, color)
 #  ImageOps.flip(image).save("output.tga")
