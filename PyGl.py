@@ -4,14 +4,8 @@ from PIL import ImageOps, ImageDraw
 from obj_parser import ObjParser
 import random
 import math
-from geometry import Vec3
+import geometry as geo
 import numpy as np
-
-
-def v_in_range(list_v, range_x, range_y):
-  for v in list_v:
-    if ((v.x in range_x) and (v.y in range_y)):
-      return True
 
 
 def line(x0, y0, x1, y1, image, color):
@@ -44,72 +38,69 @@ def line(x0, y0, x1, y1, image, color):
       y += dir_x
       error -= dx
     if (steep):
-      image[y][x] = color
+      image[x][y] = color
     else:
       image[y][x] = color
     error += d_error
     x += 1
 
-def vec_product(vec1, vec2):
-  a = Vec3(vec1[0], vec1[1], vec1[2])
-  b = Vec3(vec2[0], vec2[1], vec2[2])
-  return Vec3(a.y * b.z - a.z * b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x)
-
-def cos_2vec(a, b):
-  return (a.x*b.x + a.y*b.y + a.z*b.z)/(math.sqrt((a.x)**2 + (a.y)**2 + (a.z)**2) * math.sqrt((b.x)**2 + (b.y)**2 + (b.z)**2))
-
 def draw_obj(obj, image):
+  z_buffer = np.full((IMAGE_HEIGHT, IMAGE_WIDTH), -np.inf)
   for face in obj.faces:
     v1 = obj.vertexes[face[0]-1]
     v2 = obj.vertexes[face[1]-1]
     v3 = obj.vertexes[face[2]-1]
 
-    screen_v1 = Vec3()
-    screen_v2 = Vec3()
-    screen_v3 = Vec3()
+    screen_v1 = geo.Vec3()
+    screen_v2 = geo.Vec3()
+    screen_v3 = geo.Vec3()
 
     width = IMAGE_WIDTH/2
     height = IMAGE_HEIGHT/2
     screen_v1.x = int((v1.x+1) * width)-1
     screen_v1.y = int((v1.y+1) * height)-1
+    screen_v1.z = v1.z
 
     screen_v2.x = int((v2.x+1) * width)-1
     screen_v2.y = int((v2.y+1) * height)-1
+    screen_v2.z = v2.z
 
     screen_v3.x = int((v3.x+1) * width)-1
     screen_v3.y = int((v3.y+1) * height)-1
+    screen_v3.z = v3.z
 
 
     vec1 = [v1.x - v2.x, v1.y - v2.y, v1.z - v2.z]
     vec2 = [v1.x - v3.x, v1.y - v3.y, v1.z - v3.z]
 
 
-    normal = vec_product(vec2, vec1)
+    normal = geo.vec_product(vec2, vec1)
 
-    light_dir = Vec3(0, 0, -1)
-    intensity = cos_2vec(normal, light_dir)
+    light_dir = geo.Vec3(0, 0, -1)
+    intensity = geo.cos_2vec(normal, light_dir)
 
     if intensity > 0:
-      triangle(screen_v1, screen_v2, screen_v3, image, (int(255*intensity), int(255*intensity), int(255*intensity)))
+      triangle(screen_v1, screen_v2, screen_v3, image, z_buffer, (int(255*intensity), int(255*intensity), int(255*intensity)))
 
 def change_x(x, y, err, dy, dir, image, color):
   while 2*err > dy:
     x += dir
     err -= dy
-    image[y][x] = color
+
 
   return x, err
 
-
-def horizontal_line(x1, x2, y, image, color):
+def horizontal_line(x1, x2, y, z1, z2, image, z_buffer, color):
   if (x1 > x2):
     x1, x2 = x2, x1
 
-  for x in range(x1, x2+1):
-    image[y][x] = color
+  for x in range(x1, x2):
+    z = z1 + ((z2 - z1)*(x-x1))/(x2-x1)
+    if (z_buffer[y][x] < z):
+      z_buffer[y][x] = z
+      image[y][x] = color
 
-
-def triangle(v1, v2, v3, image, color):
+def triangle(v1, v2, v3, image, z_buffer, color):
   x1, y1 = v1.x, v1.y
   x2, y2 = v2.x, v2.y
   x3, y3 = v3.x, v3.y
@@ -154,7 +145,7 @@ def triangle(v1, v2, v3, image, color):
   err_beta = 0
 
   if y1 == y2:
-    horizontal_line(x1, x2, y1, image, color)
+    horizontal_line(x1, x2, y1, v1.z, v2.z, image, z_buffer, color)
     x_beta = x2
 
 
@@ -165,7 +156,10 @@ def triangle(v1, v2, v3, image, color):
     err_beta += d_err_beta
     x_beta, err_beta = change_x(x_beta, y, err_beta, dy1_2, dir_beta, image, color)
 
-    horizontal_line(x_alpha, x_beta, y, image, color)
+    z_alpha = v1.z + ((v3.z - v1.z)*(y - y1))/(y3 - y1)
+    z_beta = v1.z + ((v2.z - v1.z)*(y - y1))/(y2 - y1)
+
+    horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, image, z_buffer, color)
 
   if x3 > x2:
     dir_beta = 1
@@ -174,7 +168,7 @@ def triangle(v1, v2, v3, image, color):
   d_err_beta = dx2_3
 
   if y2 == y3:
-    horizontal_line(x2, x3, y2, image, color)
+    horizontal_line(x2, x3, y2, v2.z, v3.z, image, z_buffer, color)
 
   for y in range(y2+1, y3+1):
 
@@ -184,25 +178,29 @@ def triangle(v1, v2, v3, image, color):
     err_beta += d_err_beta
     x_beta, err_beta = change_x(x_beta, y, err_beta, dy2_3, dir_beta, image, color)
 
-    horizontal_line(x_alpha, x_beta, y, image, color)
+    z_alpha = v1.z + ((v3.z - v1.z)*(y - y1))/(y3 - y1)
+    z_beta = v2.z + ((v3.z - v2.z)*(y - y2))/(y3 - y2)
+
+    horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, image, z_buffer, color)
 
 
-
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+WHITE = (255, 255, 255)
 
 
 IMAGE_HEIGHT = 1000
 IMAGE_WIDTH = 1000
-
-
-#image = Image.new("RGB", (IMAGE_WIDTH, IMAGE_HEIGHT))
-
-image_array = np.zeros( (IMAGE_WIDTH,IMAGE_HEIGHT,3), dtype=np.uint8 )
-
+image = np.zeros( (IMAGE_WIDTH,IMAGE_HEIGHT,3), dtype=np.uint8 )
 obj = ObjParser("african_head.obj")
 
-draw_obj(obj, image_array)
 
-image = Image.fromarray(image_array)
+#render(image)
+draw_obj(obj, image)
 
 
+
+
+image = Image.fromarray(image)
 ImageOps.flip(image).save("output.tga")
