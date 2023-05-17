@@ -79,18 +79,29 @@ def draw_obj(obj, texture, image):
     screen_v3.z = v3.z
 
 
-    texture_width = len(texture[0])/2
-    texture_height = len(texture)/2
-    screen_vt1.x = int((vt1.x+1) * texture_width)-1
-    screen_vt1.y = int((vt1.y+1) * texture_height)-1
+    texture_width = len(texture[0])
+    texture_height = len(texture)
+    # screen_vt1.x = int((vt1.x+1) * texture_width)-1
+    # screen_vt1.y = int((vt1.y+1) * texture_height)-1
 
 
-    screen_vt2.x = int((vt2.x+1) * texture_width)-1
-    screen_vt2.y = int((vt2.y+1) * texture_height)-1
+    # screen_vt2.x = int((vt2.x+1) * texture_width)-1
+    # screen_vt2.y = int((vt2.y+1) * texture_height)-1
 
 
-    screen_vt3.x = int((vt3.x+1) * texture_width)-1
-    screen_vt3.y = int((vt3.y+1) * texture_height)-1
+    # screen_vt3.x = int((vt3.x+1) * texture_width)-1
+    # screen_vt3.y = int((vt3.y+1) * texture_height)-1
+
+    screen_vt1.x = int((vt1.x) * texture_width)-1
+    screen_vt1.y = int((vt1.y) * texture_height)-1
+
+
+    screen_vt2.x = int((vt2.x) * texture_width)-1
+    screen_vt2.y = int((vt2.y) * texture_height)-1
+
+
+    screen_vt3.x = int((vt3.x) * texture_width)-1
+    screen_vt3.y = int((vt3.y) * texture_height)-1
 
     vec1 = [v1.x - v2.x, v1.y - v2.y, v1.z - v2.z]
     vec2 = [v1.x - v3.x, v1.y - v3.y, v1.z - v3.z]
@@ -98,13 +109,14 @@ def draw_obj(obj, texture, image):
 
     normal = geo.vec_product(vec2, vec1)
 
-    light_dir = geo.Vec3(0, 0, -1)
+    light_dir = geo.Vec3(0, -1, -1)
     intensity = geo.cos_2vec(normal, light_dir)
 
     if intensity > 0:
-      triangle(screen_v1, screen_v2, screen_v3, screen_vt1, screen_vt2, screen_vt3, image, z_buffer, (int(255*intensity), int(255*intensity), int(255*intensity)), texture)
+      triangle(screen_v1, screen_v2, screen_v3, screen_vt1, screen_vt2, screen_vt3, image, z_buffer, intensity, texture)
+#    ImageOps.flip(Image.fromarray(image)).save("output.tga")
 
-def change_x(x, y, err, dy, dir, image, color):
+def change_x(x, y, err, dy, dir, image,):
   while 2*err > dy:
     x += dir
     err -= dy
@@ -112,26 +124,35 @@ def change_x(x, y, err, dy, dir, image, color):
 
   return x, err
 
-def horizontal_line(x1, x2, y, z1, z2, image, z_buffer, color):
+def horizontal_line(x1, x2, y, z1, z2, vt1, vt2, image, z_buffer, texture, intensity):
   if (x1 > x2):
     x1, x2 = x2, x1
+    vt1, vt2 = vt2, vt1
+
 
   for x in range(x1, x2):
     z = z1 + ((z2 - z1)*(x-x1))/(x2-x1)
+    xt = vt1.x + ((vt2.x - vt1.x) * (x - x1)) / (x2 - x1)
+    yt = vt1.y + ((vt2.y - vt1.y) * (x - x1)) / (x2 - x1)
     if (z_buffer[y][x] < z):
       z_buffer[y][x] = z
-      image[y][x] = color
+      color = texture[int(yt)][int(xt)]
+      
+      image[y][x] = [color[0]*intensity, color[1]*intensity, color[2]*intensity]
 
-def triangle(v1, v2, v3, screen_vt1, screen_vt2, screen_vt3, image, z_buffer, color, texture):
+def triangle(v1, v2, v3, vt1, vt2, vt3, image, z_buffer, intensity, texture):
 
   if (v3.y < v1.y):
     v1, v3 = v3, v1
+    vt1, vt3 = vt3, vt1
 
   if (v2.y < v1.y):
     v2, v1 = v1, v2
+    vt2, vt1 = vt1, vt2
 
   if (v3.y < v2.y):
     v2, v3 = v3, v2
+    vt2, vt3 = vt3, vt2
 
   dy1_3 = v3.y - v1.y 
   dy1_2 = v2.y - v1.y
@@ -161,21 +182,34 @@ def triangle(v1, v2, v3, screen_vt1, screen_vt2, screen_vt3, image, z_buffer, co
   err_beta = 0
 
   if v1.y == v2.y:
-    horizontal_line(v1.x, v2.x, v1.y, v1.z, v2.z, image, z_buffer, color)
+    horizontal_line(v1.x, v2.x, v1.y, v1.z, v2.z, vt1, vt2, image, z_buffer, texture, intensity)
     x_beta = v2.x
 
 
   for y in range(v1.y+1, v2.y+1):
     err_alpha += d_err_alpha
-    x_alpha, err_alpha = change_x(x_alpha, y, err_alpha, dy1_3, dir_alpha, image, color)
+    x_alpha, err_alpha = change_x(x_alpha, y, err_alpha, dy1_3, dir_alpha, image)
 
     err_beta += d_err_beta
-    x_beta, err_beta = change_x(x_beta, y, err_beta, dy1_2, dir_beta, image, color)
+    x_beta, err_beta = change_x(x_beta, y, err_beta, dy1_2, dir_beta, image)
 
     z_alpha = v1.z + ((v3.z - v1.z)*(y - v1.y))/(v3.y - v1.y)
     z_beta = v1.z + ((v2.z - v1.z)*(y - v1.y))/(v2.y - v1.y)
 
-    horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, image, z_buffer, color)
+    alpha_vt = geo.Vec3(vt1.x,0,0)
+    beta_vt = geo.Vec3(vt1.x,0,0)
+
+    if (v3.x != v1.x):
+      alpha_vt.x = int(vt1.x + ((vt3.x - vt1.x) * (x_alpha - v1.x)) / (v3.x - v1.x))
+
+    alpha_vt.y = int(vt1.y + ((vt3.y - vt1.y) * (y - v1.y)) / (v3.y - v1.y))
+
+    if (v2.x != v1.x):
+      beta_vt.x = int(vt1.x + ((vt2.x - vt1.x) * (x_beta - v1.x)) / (v2.x - v1.x))
+
+    beta_vt.y = int(vt1.y + ((vt2.y - vt1.y) * (y - v1.y)) / (v2.y - v1.y))
+
+    horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, alpha_vt, beta_vt, image, z_buffer, texture, intensity)
 
   if v3.x > v2.x:
     dir_beta = 1
@@ -184,20 +218,34 @@ def triangle(v1, v2, v3, screen_vt1, screen_vt2, screen_vt3, image, z_buffer, co
   d_err_beta = dx2_3
 
   if v2.y == v3.y:
-    horizontal_line(v2.x, v3.x, v2.y, v2.z, v3.z, image, z_buffer, color)
+    horizontal_line(v2.x, v3.x, v2.y, v2.z, v3.z, vt2, vt3, image, z_buffer, texture, intensity)
 
   for y in range(v2.y+1, v3.y+1):
 
     err_alpha += d_err_alpha
-    x_alpha, err_alpha = change_x(x_alpha, y, err_alpha, dy1_3, dir_alpha, image, color)
+    x_alpha, err_alpha = change_x(x_alpha, y, err_alpha, dy1_3, dir_alpha, image)
 
     err_beta += d_err_beta
-    x_beta, err_beta = change_x(x_beta, y, err_beta, dy2_3, dir_beta, image, color)
+    x_beta, err_beta = change_x(x_beta, y, err_beta, dy2_3, dir_beta, image)
 
     z_alpha = v1.z + ((v3.z - v1.z)*(y - v1.y))/(v3.y - v1.y)
     z_beta = v2.z + ((v3.z - v2.z)*(y - v2.y))/(v3.y - v2.y)
 
-    horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, image, z_buffer, color)
+    alpha_vt = geo.Vec3(vt1.x,0,0)
+    beta_vt = geo.Vec3(vt2.x,0,0)
+
+    if (v1.x != v3.x):
+      alpha_vt.x = int(vt1.x + ((vt3.x - vt1.x) * (x_alpha - v1.x)) / (v3.x - v1.x))
+
+    alpha_vt.y = int(vt1.y + ((vt3.y - vt1.y) * (y - v1.y)) / (v3.y - v1.y))
+
+
+    if (v2.x != v3.x):
+      beta_vt.x = int(vt2.x + ((vt3.x - vt2.x) * (x_beta - v2.x)) / (v3.x - v2.x))
+
+    beta_vt.y = int(vt2.y + ((vt3.y - vt2.y) * (y - v2.y)) / (v3.y - v2.y))
+
+    horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, alpha_vt, beta_vt, image, z_buffer, texture, intensity)
 
 
 RED = (255, 0, 0)
@@ -215,7 +263,11 @@ obj = ObjParser("african_head.obj")
 
 texture = Image.open("african_head_diffuse.tga")
 texture.load()
-texture = np.asarray(texture, dtype="int32")
+texture = np.asarray(texture, dtype=np.uint8)
+
+# for i in range(len(texture)):
+#   texture[i] = texture[i][::-1]
+texture = texture[::-1]
 
 draw_obj(obj, texture, image)
 
