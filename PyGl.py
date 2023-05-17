@@ -109,7 +109,7 @@ def draw_obj(obj, texture, image):
 
     normal = geo.vec_product(vec2, vec1)
 
-    light_dir = geo.Vec3(0, -1, -1)
+    light_dir = geo.Vec3(0, 0, -1)
     intensity = geo.cos_2vec(normal, light_dir)
 
     if intensity > 0:
@@ -199,15 +199,15 @@ def triangle(v1, v2, v3, vt1, vt2, vt3, image, z_buffer, intensity, texture):
     alpha_vt = geo.Vec3(vt1.x,0,0)
     beta_vt = geo.Vec3(vt1.x,0,0)
 
-    if (v3.x != v1.x):
-      alpha_vt.x = int(vt1.x + ((vt3.x - vt1.x) * (x_alpha - v1.x)) / (v3.x - v1.x))
-
     alpha_vt.y = int(vt1.y + ((vt3.y - vt1.y) * (y - v1.y)) / (v3.y - v1.y))
-
-    if (v2.x != v1.x):
-      beta_vt.x = int(vt1.x + ((vt2.x - vt1.x) * (x_beta - v1.x)) / (v2.x - v1.x))
+#    if (v3.x != v1.x):
+    alpha_vt.x = int(vt1.x + ((vt3.x - vt1.x) * (y - v1.y)) / (v3.y - v1.y))
 
     beta_vt.y = int(vt1.y + ((vt2.y - vt1.y) * (y - v1.y)) / (v2.y - v1.y))
+#    if (v2.x != v1.x):
+    beta_vt.x = int(vt1.x + ((vt2.x - vt1.x) * (y - v1.y)) / (v2.y - v1.y))
+
+
 
     horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, alpha_vt, beta_vt, image, z_buffer, texture, intensity)
 
@@ -234,16 +234,15 @@ def triangle(v1, v2, v3, vt1, vt2, vt3, image, z_buffer, intensity, texture):
     alpha_vt = geo.Vec3(vt1.x,0,0)
     beta_vt = geo.Vec3(vt2.x,0,0)
 
-    if (v1.x != v3.x):
-      alpha_vt.x = int(vt1.x + ((vt3.x - vt1.x) * (x_alpha - v1.x)) / (v3.x - v1.x))
-
     alpha_vt.y = int(vt1.y + ((vt3.y - vt1.y) * (y - v1.y)) / (v3.y - v1.y))
+#    if (v1.x != v3.x):
+    alpha_vt.x = int(vt1.x + ((vt3.x - vt1.x) * (y - v1.y)) / (v3.y - v1.y))
 
 
-    if (v2.x != v3.x):
-      beta_vt.x = int(vt2.x + ((vt3.x - vt2.x) * (x_beta - v2.x)) / (v3.x - v2.x))
 
     beta_vt.y = int(vt2.y + ((vt3.y - vt2.y) * (y - v2.y)) / (v3.y - v2.y))
+#    if (v2.x != v3.x):
+    beta_vt.x = int(vt2.x + ((vt3.x - vt2.x) * (y - v2.y)) / (v3.y - v2.y))
 
     horizontal_line(x_alpha, x_beta, y, z_alpha, z_beta, alpha_vt, beta_vt, image, z_buffer, texture, intensity)
 
